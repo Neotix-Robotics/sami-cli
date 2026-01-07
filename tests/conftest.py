@@ -41,7 +41,7 @@ def test_credentials() -> dict:
 @pytest.fixture(scope="session")
 def authenticated_client(api_url: str, test_credentials: dict):
     """Create an authenticated SamiClient for integration tests."""
-    from sami_datasets import SamiClient
+    from sami_cli import SamiClient
 
     client = SamiClient(
         api_url=api_url,

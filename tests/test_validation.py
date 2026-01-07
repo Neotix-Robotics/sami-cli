@@ -4,8 +4,8 @@ import json
 import pytest
 from pathlib import Path
 
-from sami_datasets.upload import validate_lerobot_structure, list_dataset_files
-from sami_datasets.exceptions import ValidationError
+from sami_cli.upload import validate_lerobot_structure, list_dataset_files
+from sami_cli.exceptions import ValidationError
 
 
 class TestValidateLerobotStructure:

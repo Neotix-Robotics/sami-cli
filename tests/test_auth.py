@@ -1,10 +1,10 @@
-"""Tests for sami_datasets.auth module."""
+"""Tests for sami_cli.auth module."""
 
 import pytest
 from unittest.mock import Mock, patch
 
-from sami_datasets.auth import SamiAuth
-from sami_datasets.exceptions import AuthenticationError
+from sami_cli.auth import SamiAuth
+from sami_cli.exceptions import AuthenticationError
 
 
 class TestSamiAuthUnit:
@@ -62,7 +62,7 @@ class TestSamiAuthUnit:
         assert auth.is_authenticated() is True
 
     @pytest.mark.unit
-    @patch("sami_datasets.auth.requests.post")
+    @patch("sami_cli.auth.requests.post")
     def test_login_success(self, mock_post):
         """Test successful login."""
         mock_response = Mock()
@@ -85,7 +85,7 @@ class TestSamiAuthUnit:
         mock_post.assert_called_once()
 
     @pytest.mark.unit
-    @patch("sami_datasets.auth.requests.post")
+    @patch("sami_cli.auth.requests.post")
     def test_login_failure(self, mock_post):
         """Test login failure."""
         mock_response = Mock()
@@ -103,7 +103,7 @@ class TestSamiAuthUnit:
         assert "Invalid credentials" in str(exc_info.value)
 
     @pytest.mark.unit
-    @patch("sami_datasets.auth.requests.post")
+    @patch("sami_cli.auth.requests.post")
     def test_login_no_token_in_response(self, mock_post):
         """Test login fails when no token in response."""
         mock_response = Mock()

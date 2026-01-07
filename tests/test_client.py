@@ -1,10 +1,10 @@
-"""Integration tests for sami_datasets.client module."""
+"""Integration tests for sami_cli.client module."""
 
 import pytest
 from pathlib import Path
 
-from sami_datasets import SamiClient, SamiError, AuthenticationError, NotFoundError
-from sami_datasets.models import Dataset
+from sami_cli import SamiClient, SamiError, AuthenticationError, NotFoundError
+from sami_cli.models import Dataset
 
 
 class TestSamiClientUnit:
@@ -180,7 +180,7 @@ class TestDatasetUploadDownloadIntegration:
     @pytest.mark.integration
     def test_upload_invalid_dataset(self, authenticated_client: SamiClient, invalid_dataset_dir: Path):
         """Test uploading an invalid dataset fails."""
-        from sami_datasets.exceptions import ValidationError
+        from sami_cli.exceptions import ValidationError
 
         with pytest.raises(ValidationError):
             authenticated_client.upload_dataset(

@@ -14,7 +14,7 @@ CLI Usage:
     sami download <dataset-id>
 
 Python SDK Usage:
-    from sami_datasets import SamiClient
+    from sami_cli import SamiClient
 
     # Option 1: Use saved credentials (after 'sami login')
     client = SamiClient.from_saved_credentials()

@@ -39,7 +39,7 @@ pytest tests/ -m integration
 ### Run with Coverage
 
 ```bash
-pytest tests/ --cov=sami_datasets --cov-report=html
+pytest tests/ --cov=sami_cli --cov-report=html
 ```
 
 ## Test Configuration

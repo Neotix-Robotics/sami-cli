@@ -1,9 +1,9 @@
-"""Unit tests for sami_datasets.models module."""
+"""Unit tests for sami_cli.models module."""
 
 import pytest
 from datetime import datetime
 
-from sami_datasets.models import Dataset, UploadUrl, DownloadUrl
+from sami_cli.models import Dataset, UploadUrl, DownloadUrl
 
 
 class TestDataset:

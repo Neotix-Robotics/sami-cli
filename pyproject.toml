@@ -41,7 +41,7 @@ dev = [
 ]
 
 [project.scripts]
-sami = "sami_datasets.cli:main"
+sami = "sami_cli.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/Neotix-Robotics/sami-cli"
@@ -62,4 +62,4 @@ filterwarnings = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["sami_datasets*"]
+include = ["sami_cli*"]

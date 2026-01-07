@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from sami_datasets import SamiClient
+from sami_cli import SamiClient
 
 
 def create_test_dataset(output_path="/tmp/test-dataset"):

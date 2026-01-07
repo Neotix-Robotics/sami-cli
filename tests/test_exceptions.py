@@ -1,8 +1,8 @@
-"""Unit tests for sami_datasets.exceptions module."""
+"""Unit tests for sami_cli.exceptions module."""
 
 import pytest
 
-from sami_datasets.exceptions import (
+from sami_cli.exceptions import (
     SamiError,
     AuthenticationError,
     NotFoundError,

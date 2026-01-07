@@ -103,7 +103,7 @@ sami download abc123
 After running `sami login`, use credentials in Python:
 
 ```python
-from sami_datasets import SamiClient
+from sami_cli import SamiClient
 
 # Use saved credentials from ~/.sami/
 client = SamiClient.from_saved_credentials()
@@ -117,7 +117,7 @@ for ds in datasets:
 ### Direct Authentication
 
 ```python
-from sami_datasets import SamiClient
+from sami_cli import SamiClient
 
 # Authenticate directly
 client = SamiClient(
@@ -223,7 +223,7 @@ class Dataset:
 ## Exceptions
 
 ```python
-from sami_datasets import (
+from sami_cli import (
     SamiError,              # Base exception
     AuthenticationError,    # Login failed
     NotFoundError,          # Resource not found
