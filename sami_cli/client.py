@@ -216,16 +216,17 @@ class SamiClient:
         dataset_id: str,
         output_path: str,
         max_workers: int = 4,
+        dataset_format: str = "lerobot",
     ) -> Path:
         """Download a dataset.
 
-        The downloaded dataset will be in LeRobot format and can be loaded
-        directly with LeRobot's dataset loaders.
+        The downloaded dataset will be in the specified format.
 
         Args:
             dataset_id: ID of the dataset to download
             output_path: Local path to download to
             max_workers: Number of parallel download threads
+            dataset_format: Format to download ('lerobot' or 'hdf5')
 
         Returns:
             Path to the downloaded dataset
@@ -236,7 +237,86 @@ class SamiClient:
             dataset_id=dataset_id,
             output_path=output_path,
             max_workers=max_workers,
+            dataset_format=dataset_format,
         )
+
+    def list_formats(self, dataset_id: str) -> List[dict]:
+        """List available formats for a dataset.
+
+        Args:
+            dataset_id: ID of the dataset
+
+        Returns:
+            List of format info dictionaries with keys: format, status, progress, size
+        """
+        response = requests.get(
+            f"{self.api_url}/datasets/{dataset_id}/formats",
+            headers=self.auth.get_headers(),
+        )
+
+        if response.status_code == 404:
+            raise NotFoundError(f"Dataset not found: {dataset_id}")
+        if response.status_code != 200:
+            try:
+                error = response.json().get("error", {}).get("message", "Unknown error")
+            except Exception:
+                error = f"HTTP {response.status_code}"
+            raise SamiError(f"Failed to list formats: {error}")
+
+        return response.json()["data"]["formats"]
+
+    def request_conversion(self, dataset_id: str, target_format: str) -> dict:
+        """Request conversion of a dataset to a target format.
+
+        Args:
+            dataset_id: ID of the dataset
+            target_format: Target format ('hdf5')
+
+        Returns:
+            Conversion job info dictionary
+        """
+        response = requests.post(
+            f"{self.api_url}/datasets/{dataset_id}/convert",
+            json={"targetFormat": target_format},
+            headers=self.auth.get_headers(),
+        )
+
+        if response.status_code == 404:
+            raise NotFoundError(f"Dataset not found: {dataset_id}")
+        if response.status_code not in (200, 201, 202):
+            try:
+                error = response.json().get("error", {}).get("message", "Unknown error")
+            except Exception:
+                error = f"HTTP {response.status_code}"
+            raise SamiError(f"Failed to request conversion: {error}")
+
+        return response.json()["data"]
+
+    def get_conversion_status(self, dataset_id: str, target_format: str) -> dict:
+        """Get the status of a conversion job.
+
+        Args:
+            dataset_id: ID of the dataset
+            target_format: Target format ('hdf5')
+
+        Returns:
+            Conversion job status dictionary with keys: status, progress, errorMessage
+        """
+        response = requests.get(
+            f"{self.api_url}/datasets/{dataset_id}/convert/{target_format}",
+            headers=self.auth.get_headers(),
+        )
+
+        if response.status_code == 404:
+            raise NotFoundError(f"Conversion job not found")
+        if response.status_code != 200:
+            try:
+                error = response.json().get("error", {}).get("message", "Unknown error")
+            except Exception:
+                error = f"HTTP {response.status_code}"
+            raise SamiError(f"Failed to get conversion status: {error}")
+
+        return response.json()["data"]
 
     def delete_dataset(self, dataset_id: str) -> None:
         """Delete a dataset.

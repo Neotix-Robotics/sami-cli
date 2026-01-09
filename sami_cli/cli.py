@@ -27,6 +27,7 @@ def get_client():
     """Get an authenticated SamiClient.
 
     Loads credentials from disk or environment variables.
+    Automatically refreshes expired tokens and saves them back to disk.
 
     Returns:
         Authenticated SamiClient instance
@@ -55,6 +56,22 @@ def get_client():
     client = SamiClient(api_url=config.get_api_url())
     client.auth.access_token = credentials["access_token"]
     client.auth.refresh_token = credentials.get("refresh_token")
+
+    # Check if token is expired and try to refresh
+    if client.auth.is_token_expired() and client.auth.refresh_token:
+        try:
+            client.auth.refresh()
+            # Save refreshed tokens back to disk
+            config.save_credentials(
+                access_token=client.auth.access_token,
+                refresh_token=client.auth.refresh_token,
+                user_email=credentials.get("user_email"),
+                organization_name=credentials.get("organization_name"),
+            )
+        except AuthenticationError:
+            print("Error: Session expired. Run 'sami login' to authenticate.", file=sys.stderr)
+            sys.exit(1)
+
     return client
 
 
@@ -77,49 +94,122 @@ def format_size(size_bytes: int) -> str:
 def cmd_login(args):
     """Handle 'sami login' command."""
     from .client import SamiClient
+    from .auth import SamiAuth
 
     config = SamiConfig()
-
-    # Get email
-    email = args.email or os.environ.get("SAMI_EMAIL")
-    if not email:
-        email = input("Email: ")
-
-    # Get password
-    password = args.password or os.environ.get("SAMI_PASSWORD")
-    if not password:
-        password = getpass.getpass("Password: ")
-
-    # Get API URL
     api_url = config.get_api_url()
 
-    try:
-        # Authenticate
-        client = SamiClient(api_url=api_url, email=email, password=password)
+    # Device flow is default, use --password for email/password flow
+    use_password_flow = getattr(args, "password_flow", False)
 
-        # Get user info
+    if not use_password_flow:
+        # Device code flow - authenticate via browser
         try:
-            user_info = client.get_current_user()
-            user_email = user_info.get("email", email)
-            org_name = user_info.get("organization", {}).get("name", "Unknown")
-        except Exception:
-            user_email = email
-            org_name = "Unknown"
+            auth = SamiAuth(api_url)
 
-        # Save credentials
-        config.save_credentials(
-            access_token=client.auth.access_token,
-            refresh_token=client.auth.refresh_token,
-            user_email=user_email,
-            organization_name=org_name,
-        )
+            print("Starting device authentication...")
+            print("")
 
-        print(f"Logged in as {user_email}")
-        print(f"  Organization: {org_name}")
+            # Get device code
+            device_data = auth.start_device_flow()
 
-    except AuthenticationError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
+            user_code = device_data.get("user_code", "")
+            verification_uri = device_data.get("verification_uri", "")
+            verification_uri_complete = device_data.get("verification_uri_complete", "")
+            device_code = device_data.get("device_code", "")
+            interval = device_data.get("interval", 5)
+
+            print("=" * 50)
+            print("To authorize this device:")
+            print("")
+            print(f"  1. Open: {verification_uri}")
+            print(f"  2. Enter code: {user_code}")
+            print("")
+            print(f"Or open: {verification_uri_complete}")
+            print("=" * 50)
+            print("")
+            print("Opening browser...")
+            print("Waiting for authorization...")
+
+            # Poll for token (this also opens the browser)
+            auth.poll_device_token(
+                device_code=device_code,
+                interval=interval,
+                open_browser=True,
+                verification_uri_complete=verification_uri_complete,
+            )
+
+            # Create client with authenticated auth
+            client = SamiClient(api_url=api_url)
+            client.auth = auth
+
+            # Get user info
+            try:
+                user_info = client.get_current_user()
+                user_email = user_info.get("email", "Unknown")
+                org_name = user_info.get("organization", {}).get("name", "Unknown")
+            except Exception:
+                user_email = "Unknown"
+                org_name = "Unknown"
+
+            # Save credentials
+            config.save_credentials(
+                access_token=auth.access_token,
+                refresh_token=auth.refresh_token,
+                user_email=user_email,
+                organization_name=org_name,
+            )
+
+            print("")
+            print("=" * 50)
+            print("Device authorized successfully!")
+            print("=" * 50)
+            print(f"Logged in as {user_email}")
+            print(f"  Organization: {org_name}")
+
+        except AuthenticationError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+
+    else:
+        # Traditional email/password flow
+        # Get email
+        email = args.email or os.environ.get("SAMI_EMAIL")
+        if not email:
+            email = input("Email: ")
+
+        # Get password (always prompt or use env var)
+        password = os.environ.get("SAMI_PASSWORD")
+        if not password:
+            password = getpass.getpass("Password: ")
+
+        try:
+            # Authenticate
+            client = SamiClient(api_url=api_url, email=email, password=password)
+
+            # Get user info
+            try:
+                user_info = client.get_current_user()
+                user_email = user_info.get("email", email)
+                org_name = user_info.get("organization", {}).get("name", "Unknown")
+            except Exception:
+                user_email = email
+                org_name = "Unknown"
+
+            # Save credentials
+            config.save_credentials(
+                access_token=client.auth.access_token,
+                refresh_token=client.auth.refresh_token,
+                user_email=user_email,
+                organization_name=org_name,
+            )
+
+            print(f"Logged in as {user_email}")
+            print(f"  Organization: {org_name}")
+
+        except AuthenticationError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
 
 
 # =============================================================================
@@ -146,16 +236,42 @@ def cmd_logout(args):
 
 def cmd_whoami(args):
     """Handle 'sami whoami' command."""
+    from .client import SamiClient
+
     config = SamiConfig()
     credentials = config.load_credentials()
 
-    if not credentials:
+    if not credentials or not credentials.get("access_token"):
         print("Not logged in. Run 'sami login' first.", file=sys.stderr)
         sys.exit(1)
 
-    # Try to get fresh user info
+    api_url = config.get_api_url()
+    client = SamiClient(api_url=api_url)
+    client.auth.access_token = credentials["access_token"]
+    client.auth.refresh_token = credentials.get("refresh_token")
+
+    # Check token status
+    token_was_expired = client.auth.is_token_expired()
+    session_refreshed = False
+
+    # If token is expired, try to refresh
+    if token_was_expired and client.auth.refresh_token:
+        try:
+            client.auth.refresh()
+            session_refreshed = True
+            # Save refreshed tokens
+            config.save_credentials(
+                access_token=client.auth.access_token,
+                refresh_token=client.auth.refresh_token,
+                user_email=credentials.get("user_email"),
+                organization_name=credentials.get("organization_name"),
+            )
+        except AuthenticationError:
+            print("Session expired. Run 'sami login' to authenticate.", file=sys.stderr)
+            sys.exit(1)
+
+    # Try to get fresh user info from API
     try:
-        client = get_client()
         user_info = client.get_current_user()
 
         print(f"Email: {user_info.get('email', 'Unknown')}")
@@ -164,17 +280,14 @@ def cmd_whoami(args):
         org = user_info.get("organization", {})
         print(f"Organization: {org.get('name', 'Unknown')}")
         print(f"Role: {user_info.get('globalRole', 'Unknown')}")
+        print(f"Session: Valid" + (" (refreshed)" if session_refreshed else ""))
 
     except AuthenticationError:
-        # Fall back to cached info
-        print(f"Email: {credentials.get('user_email', 'Unknown')}")
-        print(f"Organization: {credentials.get('organization_name', 'Unknown')}")
-        print("(Session may have expired. Run 'sami login' to refresh.)")
+        print("Session expired. Run 'sami login' to authenticate.", file=sys.stderr)
+        sys.exit(1)
     except Exception as e:
-        print(f"Error fetching user info: {e}", file=sys.stderr)
-        # Fall back to cached info
-        print(f"Email: {credentials.get('user_email', 'Unknown')}")
-        print(f"Organization: {credentials.get('organization_name', 'Unknown')}")
+        print(f"Error: Failed to verify session - {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 # =============================================================================
@@ -280,7 +393,7 @@ def cmd_upload(args):
         if dataset.episode_count:
             print(f"  Episodes:      {dataset.episode_count:,}")
         if dataset.total_frames:
-            print(f"  Total Frames:  {dataset.total_frames:,}")
+            print(f"  Total Frames:  {int(dataset.total_frames):,}")
         if dataset.fps:
             print(f"  FPS:           {dataset.fps}")
         if dataset.robot_type:
@@ -300,15 +413,59 @@ def cmd_upload(args):
 
 def cmd_download(args):
     """Handle 'sami download' command."""
+    import time
+
     client = get_client()
+    dataset_format = getattr(args, "format", "lerobot")
 
     try:
-        print(f"Downloading dataset {args.id}...")
+        # If HDF5 format requested, check if conversion is needed
+        if dataset_format == "hdf5":
+            print(f"Checking {dataset_format.upper()} format availability...")
+            formats = client.list_formats(args.id)
+
+            hdf5_format = next((f for f in formats if f.get("format") == "hdf5"), None)
+
+            if not hdf5_format or hdf5_format.get("status") not in ["available", "completed"]:
+                # Need to request conversion
+                if hdf5_format and hdf5_format.get("status") in ["pending", "queued", "converting"]:
+                    print("Conversion already in progress...")
+                else:
+                    print("Requesting HDF5 conversion...")
+                    client.request_conversion(args.id, "hdf5")
+
+                # Poll for completion with progress bar
+                print("Converting to HDF5 format (this may take a while)...")
+                while True:
+                    status = client.get_conversion_status(args.id, "hdf5")
+                    progress = status.get("progress", 0)
+                    status_str = status.get("status", "unknown")
+
+                    # Print progress
+                    bar_len = 40
+                    filled = int(bar_len * progress / 100)
+                    bar = "█" * filled + "░" * (bar_len - filled)
+                    print(f"\r  [{bar}] {progress:.0f}% - {status_str}", end="", flush=True)
+
+                    if status_str == "completed":
+                        print("\n  Conversion complete!")
+                        break
+                    elif status_str == "failed":
+                        error_msg = status.get("errorMessage", "Unknown error")
+                        print(f"\n  Conversion failed: {error_msg}", file=sys.stderr)
+                        sys.exit(1)
+
+                    time.sleep(2)
+            else:
+                print(f"HDF5 format is available.")
+
+        print(f"Downloading dataset {args.id} in {dataset_format.upper()} format...")
 
         output_path = client.download_dataset(
             dataset_id=args.id,
             output_path=args.output,
             max_workers=args.workers,
+            dataset_format=dataset_format,
         )
 
         print("")
@@ -415,7 +572,8 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  sami login                              # Login interactively
+  sami login                              # Login via browser (default)
+  sami login --password                   # Login with email/password
   sami list                               # List accessible datasets
   sami upload ./dataset --name "My Data"  # Upload a dataset
   sami download abc123 --output ./data    # Download a dataset
@@ -435,8 +593,13 @@ Environment Variables:
     # sami login
     # -------------------------------------------------------------------------
     login_parser = subparsers.add_parser("login", help="Authenticate and save credentials")
-    login_parser.add_argument("--email", help="Email (or enter interactively)")
-    login_parser.add_argument("--password", help="Password (or enter interactively)")
+    login_parser.add_argument(
+        "--password", "-p",
+        action="store_true",
+        dest="password_flow",
+        help="Use email/password login instead of browser authentication",
+    )
+    login_parser.add_argument("--email", help="Email for password login")
     login_parser.set_defaults(func=cmd_login)
 
     # -------------------------------------------------------------------------
@@ -494,6 +657,12 @@ Environment Variables:
     download_parser.add_argument("id", help="Dataset ID")
     download_parser.add_argument("--output", default=".", help="Output directory (default: current)")
     download_parser.add_argument("--workers", type=int, default=4, help="Parallel download workers (default: 4)")
+    download_parser.add_argument(
+        "--format",
+        choices=["lerobot", "hdf5"],
+        default="lerobot",
+        help="Download format: lerobot (default) or hdf5",
+    )
     download_parser.set_defaults(func=cmd_download)
 
     # -------------------------------------------------------------------------

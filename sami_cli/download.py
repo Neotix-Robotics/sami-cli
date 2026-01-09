@@ -39,6 +39,7 @@ def download_dataset(
     dataset_id: str,
     output_path: str,
     max_workers: int = 4,
+    dataset_format: str = "lerobot",
 ) -> Path:
     """Download a dataset from SAMI.
 
@@ -48,6 +49,7 @@ def download_dataset(
         dataset_id: ID of the dataset to download
         output_path: Local path to download to
         max_workers: Number of parallel download threads
+        dataset_format: Format to download ('lerobot' or 'hdf5')
 
     Returns:
         Path to the downloaded dataset
@@ -55,10 +57,11 @@ def download_dataset(
     output_dir = Path(output_path)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Get download URLs
-    print(f"Getting download URLs for dataset {dataset_id}...")
+    # Get download URLs - use format-specific endpoint
+    print(f"Getting download URLs for dataset {dataset_id} ({dataset_format} format)...")
     response = requests.get(
-        f"{api_url}/datasets/{dataset_id}/download-urls",
+        f"{api_url}/datasets/{dataset_id}/download",
+        params={"format": dataset_format},
         headers=auth.get_headers(),
     )
 

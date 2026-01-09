@@ -2,9 +2,13 @@
 
 import os
 import json
+import struct
+import shutil
 import mimetypes
+import subprocess
+import tempfile
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import requests
@@ -13,6 +17,156 @@ from tqdm import tqdm
 from .auth import SamiAuth
 from .models import Dataset
 from .exceptions import UploadError, ValidationError
+
+
+def check_ffmpeg_available() -> bool:
+    """Check if ffmpeg is available in PATH."""
+    return shutil.which("ffmpeg") is not None
+
+
+def needs_faststart(video_path: Path) -> bool:
+    """Check if video needs faststart (moov atom at end).
+
+    Returns True if moov atom comes after mdat atom, meaning
+    the video is not optimized for web streaming.
+    """
+    try:
+        with open(video_path, 'rb') as f:
+            moov_offset = None
+            mdat_offset = None
+
+            while True:
+                header = f.read(8)
+                if len(header) < 8:
+                    break
+
+                size = struct.unpack('>I', header[:4])[0]
+                atom_type = header[4:8].decode('latin-1', errors='ignore')
+                current_offset = f.tell() - 8
+
+                if atom_type == 'moov':
+                    moov_offset = current_offset
+                elif atom_type == 'mdat':
+                    mdat_offset = current_offset
+
+                if size == 0:
+                    break
+                if size == 1:
+                    # 64-bit size
+                    extended = f.read(8)
+                    if len(extended) < 8:
+                        break
+                    size = struct.unpack('>Q', extended)[0]
+                    f.seek(current_offset + size)
+                else:
+                    f.seek(current_offset + size)
+
+            # If moov comes after mdat, needs faststart
+            if moov_offset is not None and mdat_offset is not None:
+                return moov_offset > mdat_offset
+
+            return False
+    except Exception:
+        # If we can't parse, assume it needs processing
+        return True
+
+
+def apply_faststart(video_path: Path) -> bool:
+    """Apply faststart to video by remuxing with ffmpeg.
+
+    This moves the moov atom to the beginning of the file
+    without re-encoding (lossless, fast operation).
+
+    Returns True if successful, False otherwise.
+    """
+    temp_path = video_path.with_suffix('.tmp.mp4')
+
+    try:
+        result = subprocess.run(
+            [
+                'ffmpeg', '-i', str(video_path),
+                '-c', 'copy',
+                '-movflags', '+faststart',
+                '-y',
+                '-loglevel', 'error',
+                str(temp_path)
+            ],
+            capture_output=True,
+            text=True,
+            timeout=300  # 5 minute timeout per video
+        )
+
+        if result.returncode == 0 and temp_path.exists():
+            # Replace original with processed file
+            temp_path.replace(video_path)
+            return True
+        else:
+            # Clean up failed attempt
+            if temp_path.exists():
+                temp_path.unlink()
+            return False
+
+    except subprocess.TimeoutExpired:
+        if temp_path.exists():
+            temp_path.unlink()
+        return False
+    except Exception:
+        if temp_path.exists():
+            temp_path.unlink()
+        return False
+
+
+def process_videos_for_web(video_files: List[Tuple[Path, str, str, int]]) -> Tuple[int, int]:
+    """Process video files to ensure web compatibility.
+
+    Checks each video for faststart optimization and applies it if needed.
+
+    Args:
+        video_files: List of (absolute_path, relative_path, content_type, size) tuples
+
+    Returns:
+        Tuple of (processed_count, failed_count)
+    """
+    if not video_files:
+        return 0, 0
+
+    if not check_ffmpeg_available():
+        print("  ⚠ ffmpeg not found - skipping video optimization")
+        print("    Videos may not play in browser if not properly encoded")
+        return 0, 0
+
+    videos_needing_fix = []
+
+    # First pass: check which videos need fixing
+    print("  Checking video web compatibility...")
+    for abs_path, rel_path, _, _ in video_files:
+        if needs_faststart(abs_path):
+            videos_needing_fix.append((abs_path, rel_path))
+
+    if not videos_needing_fix:
+        print("  ✓ All videos are web-optimized")
+        return 0, 0
+
+    print(f"  Processing {len(videos_needing_fix)} videos for web streaming...")
+
+    processed = 0
+    failed = 0
+
+    with tqdm(total=len(videos_needing_fix), desc="  Optimizing", unit="videos") as pbar:
+        for abs_path, rel_path in videos_needing_fix:
+            if apply_faststart(abs_path):
+                processed += 1
+            else:
+                failed += 1
+                tqdm.write(f"    ⚠ Failed to process: {rel_path}")
+            pbar.update(1)
+
+    if processed > 0:
+        print(f"  ✓ Optimized {processed} videos for web streaming")
+    if failed > 0:
+        print(f"  ⚠ Failed to optimize {failed} videos")
+
+    return processed, failed
 
 
 def validate_lerobot_structure(path: Path, strict: bool = True) -> dict:
@@ -194,7 +348,8 @@ def list_dataset_files(path: Path) -> List[Tuple[Path, str, str, int]]:
             content_type, _ = mimetypes.guess_type(str(file_path))
             content_type = content_type or "application/octet-stream"
             size = file_path.stat().st_size
-            files.append((file_path, str(relative), content_type, size))
+            # Use as_posix() to ensure forward slashes on all platforms (Windows fix)
+            files.append((file_path, relative.as_posix(), content_type, size))
     return files
 
 
@@ -323,6 +478,16 @@ def upload_dataset(
     print(f"      - {len(meta_files)} metadata files")
     if other_files:
         print(f"      - {len(other_files)} other files")
+
+    # Process videos for web compatibility (faststart)
+    if video_files:
+        print("Optimizing videos for web streaming...")
+        processed, failed = process_videos_for_web(video_files)
+        if processed > 0:
+            # Re-scan to get updated file sizes after processing
+            files = list_dataset_files(dataset_path)
+            video_files = [(p, r, c, s) for p, r, c, s in files if r.startswith("videos/") and r.endswith(".mp4")]
+            total_size = sum(f[3] for f in files)
 
     # Warn about large video files (>1GB may have issues with presigned URLs)
     large_files = [(r, s) for _, r, _, s in files if s > 1024**3]
