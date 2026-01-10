@@ -70,7 +70,8 @@ class SamiClient:
         """Create a client using saved credentials from ~/.sami/.
 
         This is useful for CLI tools that want to use previously saved
-        login credentials.
+        login credentials. The client will automatically refresh expired
+        tokens and persist new tokens to disk.
 
         Returns:
             Authenticated SamiClient instance
@@ -87,6 +88,18 @@ class SamiClient:
         client = cls(api_url=config.get_api_url())
         client.auth.access_token = credentials["access_token"]
         client.auth.refresh_token = credentials.get("refresh_token")
+
+        # Set up callback to persist tokens when they're refreshed
+        def on_tokens_refreshed(access_token: str, refresh_token: str) -> None:
+            config.save_credentials(
+                access_token=access_token,
+                refresh_token=refresh_token,
+                user_email=credentials.get("user_email"),
+                organization_name=credentials.get("organization_name"),
+            )
+
+        client.auth._on_tokens_refreshed = on_tokens_refreshed
+
         return client
 
     def get_current_user(self) -> dict:

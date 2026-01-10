@@ -16,6 +16,8 @@ class SamiAuth:
         self.api_url = api_url.rstrip("/")
         self.access_token: Optional[str] = None
         self.refresh_token: Optional[str] = None
+        # Callback to persist tokens after refresh (set by client)
+        self._on_tokens_refreshed: Optional[callable] = None
 
     def is_token_expired(self) -> bool:
         """Check if the access token is expired.
@@ -113,6 +115,10 @@ class SamiAuth:
         self.access_token = new_access_token
         if new_refresh_token:
             self.refresh_token = new_refresh_token
+
+        # Persist new tokens to disk via callback
+        if self._on_tokens_refreshed:
+            self._on_tokens_refreshed(self.access_token, self.refresh_token)
 
         return True
 
