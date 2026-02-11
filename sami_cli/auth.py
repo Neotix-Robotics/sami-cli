@@ -79,6 +79,33 @@ class SamiAuth:
         if not self.access_token:
             raise AuthenticationError("No access token received")
 
+    def login_with_code(self, invite_code: str) -> None:
+        """Authenticate with an invite code (anonymous join)."""
+        response = requests.post(
+            f"{self.api_url}/auth/anonymous-join",
+            json={"inviteCode": invite_code},
+        )
+
+        if response.status_code not in (200, 201):
+            try:
+                error = response.json().get("error", {}).get("message", "Authentication failed")
+            except Exception:
+                error = f"Authentication failed with status {response.status_code}"
+            raise AuthenticationError(error)
+
+        data = response.json().get("data", {})
+
+        # Same token structure as login(): data.tokens.access.token
+        tokens = data.get("tokens", {})
+        access_info = tokens.get("access", {})
+        self.access_token = access_info.get("token")
+
+        refresh_info = tokens.get("refresh", {})
+        self.refresh_token = refresh_info.get("token")
+
+        if not self.access_token:
+            raise AuthenticationError("No access token received")
+
     def refresh(self) -> bool:
         """Refresh the access token using the refresh token.
 

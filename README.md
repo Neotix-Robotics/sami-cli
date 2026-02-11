@@ -19,12 +19,14 @@ pip install -e ".[dev]"
 ## Quick Start (CLI)
 
 ```bash
-# Login (credentials saved to ~/.sami/)
+# Login with invite code (simplest)
+sami login --code <YOUR-INVITE-CODE>
+
+# Or login via browser
 sami login
-Email: user@example.com
-Password: ********
-Logged in as user@example.com
-  Organization: Acme Robotics
+
+# Or login with email/password
+sami login --password
 
 # List datasets
 sami list
@@ -46,7 +48,8 @@ sami logout
 
 | Command | Description |
 |---------|-------------|
-| `sami login` | Authenticate and save credentials |
+| `sami login --code <CODE>` | Login with invite code |
+| `sami login` | Authenticate via browser or email/password |
 | `sami logout` | Clear saved credentials |
 | `sami whoami` | Show current user info |
 | `sami config` | View/set configuration |
@@ -86,14 +89,19 @@ For CI/CD pipelines, you can use environment variables instead of `sami login`:
 |----------|-------------|
 | `SAMI_API_URL` | Override API URL |
 | `SAMI_ACCESS_TOKEN` | Use token directly (skip login) |
+| `SAMI_INVITE_CODE` | Invite code for anonymous join (skip login) |
 | `SAMI_EMAIL` | Email for login |
 | `SAMI_PASSWORD` | Password for login |
 
 ```bash
-# Example: CI/CD usage
-export SAMI_ACCESS_TOKEN="your-jwt-token"
+# Example: CI/CD usage with invite code
+export SAMI_INVITE_CODE="your-invite-code"
 sami list
 sami download abc123
+
+# Or use a token directly
+export SAMI_ACCESS_TOKEN="your-jwt-token"
+sami list
 ```
 
 ## Python SDK
@@ -114,18 +122,33 @@ for ds in datasets:
     print(f"{ds.name}: {ds.episode_count} episodes")
 ```
 
-### Direct Authentication
+### Invite Code Authentication
 
 ```python
 from sami_cli import SamiClient
 
-# Authenticate directly
+# Authenticate with invite code
+client = SamiClient(invite_code="your-invite-code")
+
+# Download a dataset
+client.download_dataset(
+    dataset_id="<dataset-id>",
+    output_path="./downloaded_dataset",
+)
+```
+
+### Email/Password Authentication
+
+```python
+from sami_cli import SamiClient
+
+# Authenticate with email/password
 client = SamiClient(
     email="user@example.com",
     password="your-password",
 )
 
-# Upload a LeRobot dataset
+# Upload a LeRobot dataset (admin only)
 dataset = client.upload_dataset(
     name="my-dataset-v1",
     path="/path/to/lerobot/dataset",
@@ -133,12 +156,6 @@ dataset = client.upload_dataset(
     task_category="manipulation",
 )
 print(f"Uploaded: {dataset.id}")
-
-# Download a dataset
-client.download_dataset(
-    dataset_id=dataset.id,
-    output_path="./downloaded_dataset",
-)
 ```
 
 ### API Methods
