@@ -47,6 +47,12 @@ def get_client():
         client.auth.access_token = env_token
         return client
 
+    # Check for invite code in environment (for CI/CD)
+    env_invite_code = os.environ.get("SAMI_INVITE_CODE")
+    if env_invite_code:
+        client = SamiClient(api_url=config.get_api_url(), invite_code=env_invite_code)
+        return client
+
     # Load from saved credentials
     credentials = config.load_credentials()
     if not credentials or not credentials.get("access_token"):
@@ -99,10 +105,47 @@ def cmd_login(args):
     config = SamiConfig()
     api_url = config.get_api_url()
 
+    # Check for invite code (--code flag or env var)
+    invite_code = getattr(args, "code", None) or os.environ.get("SAMI_INVITE_CODE")
+
     # Device flow is default, use --password for email/password flow
     use_password_flow = getattr(args, "password_flow", False)
 
-    if not use_password_flow:
+    if invite_code:
+        # Invite code flow - anonymous join
+        try:
+            auth = SamiAuth(api_url)
+            auth.login_with_code(invite_code)
+
+            # Create client with authenticated auth
+            client = SamiClient(api_url=api_url)
+            client.auth = auth
+
+            # Get user info
+            try:
+                user_info = client.get_current_user()
+                user_email = user_info.get("email", "Guest")
+                org_name = user_info.get("organization", {}).get("name", "Unknown")
+            except Exception:
+                user_email = "Guest"
+                org_name = "Unknown"
+
+            # Save credentials
+            config.save_credentials(
+                access_token=auth.access_token,
+                refresh_token=auth.refresh_token,
+                user_email=user_email,
+                organization_name=org_name,
+            )
+
+            print(f"Logged in as {user_email}")
+            print(f"  Organization: {org_name}")
+
+        except AuthenticationError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+
+    elif not use_password_flow:
         # Device code flow - authenticate via browser
         try:
             auth = SamiAuth(api_url)
@@ -572,6 +615,7 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
+  sami login --code <CODE>                # Login with invite code (simplest)
   sami login                              # Login via browser (default)
   sami login --password                   # Login with email/password
   sami list                               # List accessible datasets
@@ -582,6 +626,7 @@ Examples:
 Environment Variables:
   SAMI_API_URL        Override API URL
   SAMI_ACCESS_TOKEN   Use token directly (skip login)
+  SAMI_INVITE_CODE    Invite code for login (skip login)
   SAMI_EMAIL          Email for login
   SAMI_PASSWORD       Password for login
 """,
@@ -600,6 +645,10 @@ Environment Variables:
         help="Use email/password login instead of browser authentication",
     )
     login_parser.add_argument("--email", help="Email for password login")
+    login_parser.add_argument(
+        "--code", "-c",
+        help="Login with an invite code (or set SAMI_INVITE_CODE env var)",
+    )
     login_parser.set_defaults(func=cmd_login)
 
     # -------------------------------------------------------------------------

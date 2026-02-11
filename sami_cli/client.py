@@ -40,20 +40,23 @@ class SamiClient:
         )
     """
 
-    def __init__(self, api_url: str = None, email: str = None, password: str = None):
+    def __init__(self, api_url: str = None, email: str = None, password: str = None, invite_code: str = None):
         """Initialize the SAMI client.
 
         Args:
             api_url: Base URL of the SAMI API. Defaults to https://api.dextero.co/api/v1
             email: User email for authentication
             password: User password for authentication
+            invite_code: Invite code for anonymous join authentication
         """
         if api_url is None:
             api_url = DEFAULT_API_URL
         self.api_url = api_url.rstrip("/")
         self.auth = SamiAuth(self.api_url)
 
-        if email and password:
+        if invite_code:
+            self.auth.login_with_code(invite_code)
+        elif email and password:
             self.auth.login(email, password)
 
     def login(self, email: str, password: str) -> None:
