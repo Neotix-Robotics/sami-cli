@@ -44,7 +44,7 @@ class SamiClient:
         """Initialize the SAMI client.
 
         Args:
-            api_url: Base URL of the SAMI API. Defaults to https://api.dextero.co/api/v1
+            api_url: Base URL of the SAMI API. Defaults to https://api.unitzero.ai/api/v1
             email: User email for authentication
             password: User password for authentication
             invite_code: Invite code for anonymous join authentication

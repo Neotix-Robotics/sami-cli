@@ -11,7 +11,7 @@ from typing import Optional
 
 
 # Default API URL
-DEFAULT_API_URL = "https://api.dextero.co/api/v1"
+DEFAULT_API_URL = "https://api.unitzero.ai/api/v1"
 
 
 class SamiConfig:
