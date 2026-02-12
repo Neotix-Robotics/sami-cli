@@ -1,13 +1,13 @@
-# SAMI CLI
+# UZ CLI (SAMI)
 
-Python SDK and CLI for the SAMI Dataset Distribution Platform. Upload, download, and manage robotics datasets in LeRobot format.
+Python SDK and CLI for the UnitZero / SAMI Dataset Distribution Platform. Upload, download, and manage robotics datasets in LeRobot format.
 
 > **Note:** Dataset uploads require **platform admin** privileges (`globalRole: platform_admin`). Regular users can browse and download datasets but cannot upload.
 
 ## Installation
 
 ```bash
-pip install sami-cli
+pip install uz-cli
 ```
 
 For development:
@@ -20,70 +20,70 @@ pip install -e ".[dev]"
 
 ```bash
 # Login with invite code (simplest)
-sami login --code <YOUR-INVITE-CODE>
+uz login --code <YOUR-INVITE-CODE>
 
 # Or login via browser
-sami login
+uz login
 
 # Or login with email/password
-sami login --password
+uz login --password
 
 # List datasets
-sami list
+uz list
 
 # Upload a dataset (requires admin)
-sami upload ./my_dataset --name "Robot Arm Demo"
+uz upload ./my_dataset --name "Robot Arm Demo"
 
 # Download a dataset
-sami download <dataset-id> --output ./downloaded
+uz download <dataset-id> --output ./downloaded
 
 # Show your info
-sami whoami
+uz whoami
 
 # Logout
-sami logout
+uz logout
 ```
 
 ## CLI Reference
 
 | Command | Description |
 |---------|-------------|
-| `sami login --code <CODE>` | Login with invite code |
-| `sami login` | Authenticate via browser or email/password |
-| `sami logout` | Clear saved credentials |
-| `sami whoami` | Show current user info |
-| `sami config` | View/set configuration |
-| `sami list` | List accessible datasets |
-| `sami upload <path>` | Upload a LeRobot dataset |
-| `sami download <id>` | Download a dataset |
-| `sami info <id>` | Show dataset details |
-| `sami delete <id>` | Delete a dataset |
+| `uz login --code <CODE>` | Login with invite code |
+| `uz login` | Authenticate via browser or email/password |
+| `uz logout` | Clear saved credentials |
+| `uz whoami` | Show current user info |
+| `uz config` | View/set configuration |
+| `uz list` | List accessible datasets |
+| `uz upload <path>` | Upload a LeRobot dataset |
+| `uz download <id>` | Download a dataset |
+| `uz info <id>` | Show dataset details |
+| `uz delete <id>` | Delete a dataset |
 
 ### Command Options
 
 ```bash
 # Upload with options
-sami upload ./dataset \
+uz upload ./dataset \
     --name "My Dataset" \
     --description "Kitchen manipulation tasks" \
     --task-category manipulation \
     --workers 8
 
 # Download with options
-sami download abc123 \
+uz download abc123 \
     --output ./my_data \
     --workers 8
 
 # List with filters
-sami list --status ready --limit 50
+uz list --status ready --limit 50
 
 # Set custom API URL
-sami config --api-url https://api.example.com/api/v1
+uz config --api-url https://api.example.com/api/v1
 ```
 
 ## Environment Variables
 
-For CI/CD pipelines, you can use environment variables instead of `sami login`:
+For CI/CD pipelines, you can use environment variables instead of `uz login`:
 
 | Variable | Description |
 |----------|-------------|
@@ -96,24 +96,24 @@ For CI/CD pipelines, you can use environment variables instead of `sami login`:
 ```bash
 # Example: CI/CD usage with invite code
 export SAMI_INVITE_CODE="your-invite-code"
-sami list
-sami download abc123
+uz list
+uz download abc123
 
 # Or use a token directly
 export SAMI_ACCESS_TOKEN="your-jwt-token"
-sami list
+uz list
 ```
 
 ## Python SDK
 
 ### Using Saved Credentials
 
-After running `sami login`, use credentials in Python:
+After running `uz login`, use credentials in Python:
 
 ```python
 from sami_cli import SamiClient
 
-# Use saved credentials from ~/.sami/
+# Use saved credentials from ~/.uz/
 client = SamiClient.from_saved_credentials()
 
 # List datasets

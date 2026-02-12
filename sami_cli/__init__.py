@@ -5,18 +5,18 @@ robotics datasets in LeRobot format through the SAMI platform.
 
 CLI Usage:
     # Install and login
-    pip install sami-datasets
-    sami login
+    pip install uz-cli
+    uz login
 
     # Use CLI commands
-    sami list
-    sami upload ./dataset --name "My Dataset"
-    sami download <dataset-id>
+    uz list
+    uz upload ./dataset --name "My Dataset"
+    uz download <dataset-id>
 
 Python SDK Usage:
     from sami_cli import SamiClient
 
-    # Option 1: Use saved credentials (after 'sami login')
+    # Option 1: Use saved credentials (after 'uz login')
     client = SamiClient.from_saved_credentials()
 
     # Option 2: Authenticate directly
@@ -57,7 +57,7 @@ from .exceptions import (
     ValidationError,
 )
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __all__ = [
     "SamiClient",
     "SamiConfig",

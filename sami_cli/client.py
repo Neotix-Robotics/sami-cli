@@ -44,7 +44,7 @@ class SamiClient:
         """Initialize the SAMI client.
 
         Args:
-            api_url: Base URL of the SAMI API. Defaults to https://api.dextero.co/api/v1
+            api_url: Base URL of the SAMI API. Defaults to https://api.unitzero.ai/api/v1
             email: User email for authentication
             password: User password for authentication
             invite_code: Invite code for anonymous join authentication
@@ -70,7 +70,7 @@ class SamiClient:
 
     @classmethod
     def from_saved_credentials(cls) -> "SamiClient":
-        """Create a client using saved credentials from ~/.sami/.
+        """Create a client using saved credentials from ~/.uz/.
 
         This is useful for CLI tools that want to use previously saved
         login credentials. The client will automatically refresh expired
@@ -86,7 +86,7 @@ class SamiClient:
         credentials = config.load_credentials()
 
         if not credentials or not credentials.get("access_token"):
-            raise AuthenticationError("Not logged in. Run 'sami login' first.")
+            raise AuthenticationError("Not logged in. Run 'uz login' first.")
 
         client = cls(api_url=config.get_api_url())
         client.auth.access_token = credentials["access_token"]
