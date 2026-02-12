@@ -41,8 +41,8 @@ dev = [
 ]
 
 [project.scripts]
-sami = "sami_cli.cli:main"
 uz = "sami_cli.cli:main"
+sami = "sami_cli.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/Neotix-Robotics/sami-cli"

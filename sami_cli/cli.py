@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""SAMI CLI - Command line interface for SAMI Dataset Distribution Platform.
+"""UZ CLI - Command line interface for SAMI Dataset Distribution Platform.
 
 Usage:
-    sami login              # Authenticate and save credentials
-    sami logout             # Clear saved credentials
-    sami whoami             # Show current user info
-    sami config             # View/set configuration
-    sami list               # List accessible datasets
-    sami upload <path>      # Upload a dataset
-    sami download <id>      # Download a dataset
-    sami info <id>          # Show dataset details
-    sami delete <id>        # Delete a dataset
+    uz login              # Authenticate and save credentials
+    uz logout             # Clear saved credentials
+    uz whoami             # Show current user info
+    uz config             # View/set configuration
+    uz list               # List accessible datasets
+    uz upload <path>      # Upload a dataset
+    uz download <id>      # Download a dataset
+    uz info <id>          # Show dataset details
+    uz delete <id>        # Delete a dataset
 """
 
 import argparse
@@ -56,7 +56,7 @@ def get_client():
     # Load from saved credentials
     credentials = config.load_credentials()
     if not credentials or not credentials.get("access_token"):
-        print("Error: Not logged in. Run 'sami login' first.", file=sys.stderr)
+        print("Error: Not logged in. Run 'uz login' first.", file=sys.stderr)
         sys.exit(1)
 
     client = SamiClient(api_url=config.get_api_url())
@@ -75,7 +75,7 @@ def get_client():
                 organization_name=credentials.get("organization_name"),
             )
         except AuthenticationError:
-            print("Error: Session expired. Run 'sami login' to authenticate.", file=sys.stderr)
+            print("Error: Session expired. Run 'uz login' to authenticate.", file=sys.stderr)
             sys.exit(1)
 
     return client
@@ -98,7 +98,7 @@ def format_size(size_bytes: int) -> str:
 
 
 def cmd_login(args):
-    """Handle 'sami login' command."""
+    """Handle 'uz login' command."""
     from .client import SamiClient
     from .auth import SamiAuth
 
@@ -261,7 +261,7 @@ def cmd_login(args):
 
 
 def cmd_logout(args):
-    """Handle 'sami logout' command."""
+    """Handle 'uz logout' command."""
     config = SamiConfig()
 
     if not config.has_credentials():
@@ -278,14 +278,14 @@ def cmd_logout(args):
 
 
 def cmd_whoami(args):
-    """Handle 'sami whoami' command."""
+    """Handle 'uz whoami' command."""
     from .client import SamiClient
 
     config = SamiConfig()
     credentials = config.load_credentials()
 
     if not credentials or not credentials.get("access_token"):
-        print("Not logged in. Run 'sami login' first.", file=sys.stderr)
+        print("Not logged in. Run 'uz login' first.", file=sys.stderr)
         sys.exit(1)
 
     api_url = config.get_api_url()
@@ -310,7 +310,7 @@ def cmd_whoami(args):
                 organization_name=credentials.get("organization_name"),
             )
         except AuthenticationError:
-            print("Session expired. Run 'sami login' to authenticate.", file=sys.stderr)
+            print("Session expired. Run 'uz login' to authenticate.", file=sys.stderr)
             sys.exit(1)
 
     # Try to get fresh user info from API
@@ -326,7 +326,7 @@ def cmd_whoami(args):
         print(f"Session: Valid" + (" (refreshed)" if session_refreshed else ""))
 
     except AuthenticationError:
-        print("Session expired. Run 'sami login' to authenticate.", file=sys.stderr)
+        print("Session expired. Run 'uz login' to authenticate.", file=sys.stderr)
         sys.exit(1)
     except Exception as e:
         print(f"Error: Failed to verify session - {e}", file=sys.stderr)
@@ -339,7 +339,7 @@ def cmd_whoami(args):
 
 
 def cmd_config(args):
-    """Handle 'sami config' command."""
+    """Handle 'uz config' command."""
     config = SamiConfig()
 
     if args.api_url:
@@ -368,7 +368,7 @@ def cmd_config(args):
 
 
 def cmd_list(args):
-    """Handle 'sami list' command."""
+    """Handle 'uz list' command."""
     client = get_client()
 
     try:
@@ -405,7 +405,7 @@ def cmd_list(args):
 
 
 def cmd_upload(args):
-    """Handle 'sami upload' command."""
+    """Handle 'uz upload' command."""
     import os.path
 
     # Validate path exists
@@ -455,7 +455,7 @@ def cmd_upload(args):
 
 
 def cmd_download(args):
-    """Handle 'sami download' command."""
+    """Handle 'uz download' command."""
     import time
 
     client = get_client()
@@ -528,7 +528,7 @@ def cmd_download(args):
 
 
 def cmd_info(args):
-    """Handle 'sami info' command."""
+    """Handle 'uz info' command."""
     client = get_client()
 
     try:
@@ -575,7 +575,7 @@ def cmd_info(args):
 
 
 def cmd_delete(args):
-    """Handle 'sami delete' command."""
+    """Handle 'uz delete' command."""
     client = get_client()
 
     # Confirm deletion unless --force
@@ -610,18 +610,18 @@ def cmd_delete(args):
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
-        prog="sami",
-        description="SAMI Dataset Distribution Platform CLI",
+        prog="uz",
+        description="UZ CLI - SAMI Dataset Distribution Platform",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  sami login --code <CODE>                # Login with invite code (simplest)
-  sami login                              # Login via browser (default)
-  sami login --password                   # Login with email/password
-  sami list                               # List accessible datasets
-  sami upload ./dataset --name "My Data"  # Upload a dataset
-  sami download abc123 --output ./data    # Download a dataset
-  sami info abc123                        # Show dataset details
+  uz login --code <CODE>                # Login with invite code (simplest)
+  uz login                              # Login via browser (default)
+  uz login --password                   # Login with email/password
+  uz list                               # List accessible datasets
+  uz upload ./dataset --name "My Data"  # Upload a dataset
+  uz download abc123 --output ./data    # Download a dataset
+  uz info abc123                        # Show dataset details
 
 Environment Variables:
   SAMI_API_URL        Override API URL
@@ -635,7 +635,7 @@ Environment Variables:
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # -------------------------------------------------------------------------
-    # sami login
+    # uz login
     # -------------------------------------------------------------------------
     login_parser = subparsers.add_parser("login", help="Authenticate and save credentials")
     login_parser.add_argument(
@@ -652,19 +652,19 @@ Environment Variables:
     login_parser.set_defaults(func=cmd_login)
 
     # -------------------------------------------------------------------------
-    # sami logout
+    # uz logout
     # -------------------------------------------------------------------------
     logout_parser = subparsers.add_parser("logout", help="Clear saved credentials")
     logout_parser.set_defaults(func=cmd_logout)
 
     # -------------------------------------------------------------------------
-    # sami whoami
+    # uz whoami
     # -------------------------------------------------------------------------
     whoami_parser = subparsers.add_parser("whoami", help="Show current user info")
     whoami_parser.set_defaults(func=cmd_whoami)
 
     # -------------------------------------------------------------------------
-    # sami config
+    # uz config
     # -------------------------------------------------------------------------
     config_parser = subparsers.add_parser("config", help="View/set configuration")
     config_parser.add_argument("--api-url", help="Set API URL")
@@ -672,7 +672,7 @@ Environment Variables:
     config_parser.set_defaults(func=cmd_config)
 
     # -------------------------------------------------------------------------
-    # sami list
+    # uz list
     # -------------------------------------------------------------------------
     list_parser = subparsers.add_parser("list", help="List accessible datasets")
     list_parser.add_argument(
@@ -684,7 +684,7 @@ Environment Variables:
     list_parser.set_defaults(func=cmd_list)
 
     # -------------------------------------------------------------------------
-    # sami upload
+    # uz upload
     # -------------------------------------------------------------------------
     upload_parser = subparsers.add_parser("upload", help="Upload a LeRobot dataset")
     upload_parser.add_argument("path", help="Path to LeRobot dataset directory")
@@ -700,7 +700,7 @@ Environment Variables:
     upload_parser.set_defaults(func=cmd_upload)
 
     # -------------------------------------------------------------------------
-    # sami download
+    # uz download
     # -------------------------------------------------------------------------
     download_parser = subparsers.add_parser("download", help="Download a dataset")
     download_parser.add_argument("id", help="Dataset ID")
@@ -715,14 +715,14 @@ Environment Variables:
     download_parser.set_defaults(func=cmd_download)
 
     # -------------------------------------------------------------------------
-    # sami info
+    # uz info
     # -------------------------------------------------------------------------
     info_parser = subparsers.add_parser("info", help="Show dataset details")
     info_parser.add_argument("id", help="Dataset ID")
     info_parser.set_defaults(func=cmd_info)
 
     # -------------------------------------------------------------------------
-    # sami delete
+    # uz delete
     # -------------------------------------------------------------------------
     delete_parser = subparsers.add_parser("delete", help="Delete a dataset")
     delete_parser.add_argument("id", help="Dataset ID")

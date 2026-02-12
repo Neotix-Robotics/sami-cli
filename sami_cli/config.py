@@ -1,10 +1,11 @@
-"""Configuration and credentials management for SAMI CLI.
+"""Configuration and credentials management for UZ CLI.
 
-Handles reading/writing config and credentials from ~/.sami/ directory.
+Handles reading/writing config and credentials from ~/.uz/ directory.
 """
 
 import json
 import os
+import shutil
 import stat
 from pathlib import Path
 from typing import Optional
@@ -13,22 +14,31 @@ from typing import Optional
 # Default API URL
 DEFAULT_API_URL = "https://api.unitzero.ai/api/v1"
 
+# Legacy config directory (for migration)
+_LEGACY_CONFIG_DIR = Path.home() / ".sami"
+
 
 class SamiConfig:
     """Manages SAMI configuration and credentials storage.
 
-    Files are stored in ~/.sami/:
+    Files are stored in ~/.uz/:
     - config.json: API URL and other preferences
     - credentials.json: Access and refresh tokens (chmod 600)
     """
 
-    CONFIG_DIR = Path.home() / ".sami"
+    CONFIG_DIR = Path.home() / ".uz"
     CONFIG_FILE = CONFIG_DIR / "config.json"
     CREDENTIALS_FILE = CONFIG_DIR / "credentials.json"
 
     def __init__(self):
         """Initialize config manager."""
+        self._migrate_legacy_config()
         self._ensure_config_dir()
+
+    def _migrate_legacy_config(self) -> None:
+        """Migrate config from ~/.sami/ to ~/.uz/ if needed."""
+        if not self.CONFIG_DIR.exists() and _LEGACY_CONFIG_DIR.exists():
+            shutil.copytree(_LEGACY_CONFIG_DIR, self.CONFIG_DIR)
 
     def _ensure_config_dir(self) -> None:
         """Create config directory if it doesn't exist."""
