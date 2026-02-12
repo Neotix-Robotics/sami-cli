@@ -1,13 +1,13 @@
-# SAMI CLI
+# UZ CLI (SAMI)
 
-Python SDK and CLI for the SAMI Dataset Distribution Platform. Upload, download, and manage robotics datasets in LeRobot format.
+Python SDK and CLI for the UnitZero / SAMI Dataset Distribution Platform. Upload, download, and manage robotics datasets in LeRobot format.
 
 > **Note:** Dataset uploads require **platform admin** privileges (`globalRole: platform_admin`). Regular users can browse and download datasets but cannot upload.
 
 ## Installation
 
 ```bash
-pip install sami-cli
+pip install uz-cli
 ```
 
 For development:
